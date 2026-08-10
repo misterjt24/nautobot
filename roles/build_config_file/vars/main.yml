@@ -1,0 +1,14 @@
+---
+query_string: |
+  query {
+    devices(name: "{{ device }}") {
+      inventory_hostname: name
+      config_context
+      role {
+        name
+      }
+      tags {
+        name
+      }
+    }
+  }

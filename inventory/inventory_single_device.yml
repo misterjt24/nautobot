@@ -1,0 +1,20 @@
+---
+plugin: networktocode.nautobot.gql_inventory
+api_endpoint: http://127.0.0.1:8080
+token: 0123456789abcdef0123456789abcdef01234567
+validate_certs: false
+query:
+  devices:
+    filters:
+      name: devicename
+    id:
+    platform:
+      napalm_driver
+    primary_ip4: host
+  virtual_machines:
+    filters:
+      name: EXCLUDE ALL
+group_by:
+  - platform.napalm_driver
+
+#ansible-inventory --yaml --list -i inventory/inventory.yml

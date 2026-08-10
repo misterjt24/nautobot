@@ -1,0 +1,10 @@
+### build_config_file/templates/cisco_ios.j2
+#jinja2: lstrip_blocks: "True", trim_blocks: "True"
+{% set devices = nb_devices["data"]["devices"] %}
+{% set role_name = devices[0]["role"]["name"] if devices[0]["role"] is defined else '' %}
+{% set tag_names = devices[0]["tags"] | map(attribute="name") | list %}
+{% if "offen_access" in tag_names %}
+{% include "platform_templates/offen/ios_switch.j2" %}
+{% elif role_name == "pod_l3_switch" %}
+{% include "platform_templates/vios_switch.j2" %}
+{% endif %}

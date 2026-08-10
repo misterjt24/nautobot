@@ -1,0 +1,11 @@
+
+
+### build_config_file/templates/ios/vlan.j2
+{% set vlans = [] %}
+{% if devices[0]["config_context"] is mapping %}
+{% set vlans = devices[0]["config_context"].get("vlans", []) %}
+{% endif %}
+{% for vlan in vlans %}
+vlan {{ vlan["vid"] }}
+ name {{ vlan["name"] }}
+{% endfor %}

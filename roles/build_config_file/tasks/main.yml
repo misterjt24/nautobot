@@ -1,0 +1,34 @@
+---
+### full_configuration/build/tasks
+- name: Get data from Nautobot (nautobot_query)
+  networktocode.nautobot.graphql_info:
+    url: "{{ nb_url }}"
+    token: "{{ nb_token }}"
+    validate_certs: False
+    query: "{{ query_string }}"
+    # query: |
+      # {
+        # devices {
+          # config_context
+          # inventory_hostname:name
+        # }
+      # }
+  register: "nb_devices"
+
+- name: Create directory if none exist (nautobot_query)
+  file:
+    path: build_config_files
+    state: directory
+
+- name: Configuration Assembly
+  template:
+    src: "cisco_ios.j2"
+    dest: "build_config_files/{{ nb_devices['data']['devices'][0]['inventory_hostname'] }}.conf"
+
+- name: Render Cisco IOS template into variable
+  set_fact:
+    config_file: "{{ lookup('template', 'cisco_ios.j2') }}"
+
+- name: Debug rendered config
+  ansible.builtin.debug:
+    var: config_file
