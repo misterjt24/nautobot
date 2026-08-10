@@ -1,0 +1,15 @@
+---
+- name: Query Nautobot for Device data and build full configuration
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  
+#
+#ansible-playbook pb.nautobot_build_full_config.yaml -i inventory/inventory.yml
+#
+
+  vars:
+    device: "dev-01-01.local"
+  roles:
+  #- { role: nautobot_query }
+  - { role: build_config_file }
