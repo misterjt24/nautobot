@@ -1,0 +1,9 @@
+---
+#nautobot_url: "http://192.168.2.192:8080"
+nautobot_url: "http://127.0.0.1:8080"
+nautobot_token: "0123456789abcdef0123456789abcdef01234567"
+site_slug: "7966e403-161f-41fd-b206-e9ff2d2b8b8d"
+device_role_slug: "3461c80c-b9ea-4605-a706-b83d6cf2adae"
+device_type_slug: "1d17bc39-9548-483d-8e1e-05b729ec9a62"
+namespace_slug: "3cc3d237-1085-45a6-87bd-03ddc19e130c"
+platform_slug: "21de7eef-15d6-4623-b9bc-11d944c366cf"

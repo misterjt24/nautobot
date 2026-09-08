@@ -1,0 +1,86 @@
+---
+- name: Check inventory subnets against Nautobot prefixes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    inventory_path: "../ise/inventory"
+    subnet_regex: '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+  # vars_prompt:
+  #   - name: "nautobot_url"
+  #     prompt: "Nautobot base URL"
+  #     private: no
+  #     default: "https://127.0.0.1:8080"
+  #   - name: "nautobot_token"
+  #     prompt: "Nautobot API token"
+  #     private: yes
+
+  tasks:
+    - name: Find inventory files
+      ansible.builtin.find:
+        paths: "{{ inventory_path }}"
+        file_type: file
+      register: found_files
+
+    - name: Fail if no files found in inventory path
+      ansible.builtin.fail:
+        msg: "No files found in {{ inventory_path }}"
+      when: found_files.matched == 0
+
+    - name: Read inventory files
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      loop: "{{ found_files.files }}"
+      register: file_contents
+    - name: Show file contents
+      ansible.builtin.debug:
+        var: file_contents
+
+    - name: Initialize subnet list
+      ansible.builtin.set_fact:
+        subnets: []
+
+    - name: Decode slurped file contents into readable strings
+      ansible.builtin.set_fact:
+        file_contents_decoded: "{{ file_contents_decoded | default([]) + [{'source': item.source, 'content': (item.content | b64decode)}] }}"
+      loop: "{{ file_contents.results }}"
+
+    - name: Gather file lines from decoded contents
+      ansible.builtin.set_fact:
+        file_lines: "{{ (file_lines | default([])) + (item.content | split('\n')) }}"
+      loop: "{{ file_contents_decoded }}"
+
+    - name: Filter lines for CIDR subnets and deduplicate
+      ansible.builtin.set_fact:
+        subnets: >-
+          {{ (file_lines | select('match', subnet_regex) | map('trim') | reject('equalto', '') | list) | unique }}
+
+    - name: Debug extracted subnets
+      ansible.builtin.debug:
+        var: subnets
+
+    - name: Check each subnet in Nautobot
+      ansible.builtin.uri:
+        url: "{{ nautobot_url }}/api/ipam/prefixes/?prefix={{ item }}"
+        method: GET
+        headers:
+          Authorization: "Token {{ nautobot_token }}"
+          Accept: "application/json"
+        return_content: true
+        validate_certs: false
+      loop: "{{ subnets }}"
+      register: prefix_check
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Build presence lists
+      ansible.builtin.set_fact:
+        present_prefixes: "{{ (prefix_check.results | selectattr('json.count', 'gt', 0) | map(attribute='item') | list) | default([]) }}"
+        missing_prefixes: "{{ (prefix_check.results | selectattr('json.count', 'equalto', 0) | map(attribute='item') | list) | default([]) }}"
+
+    - name: Show summary of all subnets and missing prefixes
+      ansible.builtin.debug:
+        msg:
+          all_subnets: "{{ subnets }}"
+          present_prefixes: "{{ present_prefixes }}"
+          missing_prefixes: "{{ missing_prefixes }}"
