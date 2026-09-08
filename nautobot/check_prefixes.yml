@@ -84,3 +84,9 @@
           all_subnets: "{{ subnets }}"
           present_prefixes: "{{ present_prefixes }}"
           missing_prefixes: "{{ missing_prefixes }}"
+
+    - name: Write to file
+      ansible.builtin.copy:
+        dest: "./missing_prefixes.txt"
+        content: "{{ missing_prefixes | join('\n') }}"
+        mode: '0644'
