@@ -1,0 +1,41 @@
+---
+- name: Search Nautobot for serial number
+  ansible.builtin.uri:
+    url: "{{ nautobot_url }}/api/dcim/devices/?serial={{ serialnum_value | urlencode }}"
+    method: GET
+    headers:
+      Authorization: "Token {{ nautobot_token }}"
+    return_content: true
+    validate_certs: "{{ serialnum_check_validate_certs }}"
+  register: serialnum_nautobot_lookup
+
+- name: Select matching Nautobot device
+  ansible.builtin.set_fact:
+    serialnum_matching_devices: >-
+      {{ serialnum_nautobot_lookup.json.results | default([])
+         | selectattr('name', 'search', serialnum_inventory_host | regex_escape)
+         | list }}
+    serialnum_found_devices: "{{ serialnum_nautobot_lookup.json.results | default([]) }}"
+
+- name: Debug Nautobot serial lookup and hostname match
+  ansible.builtin.debug:
+    msg:
+      inventory_host: "{{ serialnum_inventory_host }}"
+      serial: "{{ serialnum_value }}"
+      returned_device_names: "{{ serialnum_found_devices | map(attribute='name') | list }}"
+      matching_device_names: "{{ serialnum_matching_devices | map(attribute='name') | list }}"
+      matched: "{{ serialnum_matching_devices | length > 0 }}"
+
+- name: Append serial validation result
+  ansible.builtin.lineinfile:
+    path: "{{ serialnum_check_log_file }}"
+    create: true
+    mode: "0644"
+    insertafter: EOF
+    line: >-
+      {{ serialnum_inventory_host }} | serial={{ serialnum_value }} |
+      matched={{ 'yes' if serialnum_matching_devices | length > 0 else 'no' }} |
+      nautobot_device={{ (serialnum_matching_devices[0].name
+        if serialnum_matching_devices | length > 0 else
+        (serialnum_found_devices[0].name if serialnum_found_devices | length > 0
+        else 'Serial not found in Nautobot')) }}

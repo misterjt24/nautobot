@@ -1,0 +1,291 @@
+{
+    "result": {
+        "R1": {
+            "Attributes": {},
+            "Nodes": {
+                "hardware": {
+                    "Attributes": {},
+                    "Nodes": {
+                        "components": {
+                            "Attributes": {},
+                            "Nodes": {
+                                "modules": {
+                                    "Attributes": {},
+                                    "Nodes": {},
+                                    "Table": {
+                                        "KeyColumns": [
+                                            "index",
+                                            "name"
+                                        ],
+                                        "Rows": [
+                                            {
+                                                "description": "Cisco 2921 Motherboard with 3 GE, integrated VPN and 4W",
+                                                "index": "2",
+                                                "location": "Chassis (1)",
+                                                "manufacturer": "Cisco",
+                                                "model": "CISCO2921/K9",
+                                                "name": "Motherboard",
+                                                "serial": "FOC18401G2QE",
+                                                "software": ""
+                                            },
+                                            {
+                                                "description": "1-Port Serial WAN Interface Card",
+                                                "index": "4",
+                                                "location": "Module (2)",
+                                                "manufacturer": "Cisco",
+                                                "model": "HWIC-1T",
+                                                "name": "NIM subslot 0/0",
+                                                "serial": "FOC18412B0XH",
+                                                "software": ""
+                                            }
+                                        ]
+                                    }
+                                },
+                                "psus": {
+                                    "Attributes": {},
+                                    "Nodes": {},
+                                    "Table": {
+                                        "KeyColumns": [
+                                            "index",
+                                            "name"
+                                        ],
+                                        "Rows": [
+                                            {
+                                                "description": "AC Power Supply",
+                                                "index": "3",
+                                                "location": "Chassis (1)",
+                                                "manufacturer": "Cisco",
+                                                "model": "PWR-2921-51-AC",
+                                                "name": "Power Supply 0",
+                                                "serial": "LIT18396S5NP",
+                                                "software": ""
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "Table": {}
+                        },
+                        "system": {
+                            "Attributes": {
+                                "Pairs": {
+                                    "model": "CISCO2921/K9",
+                                    "product": "Cisco IOS Software, C2900 Software (C2900-UNIVERSALK9-M), Version 15.7(3)M5, RELEASE SOFTWARE (fc1), Copyright (c) 1986-2019 by Cisco Systems, Inc.",
+                                    "serial": "FTX1840AE8HG"
+                                }
+                            },
+                            "Nodes": {},
+                            "Table": {}
+                        }
+                    },
+                    "Table": {}
+                },
+                "networking": {
+                    "Attributes": {
+                        "Pairs": {
+                            "total_ethernet_ports": 0,
+                            "total_interfaces": 2
+                        }
+                    },
+                    "Nodes": {
+                        "addresses": {
+                            "Attributes": {},
+                            "Nodes": {},
+                            "Table": {
+                                "KeyColumns": [
+                                    "address",
+                                    "device"
+                                ],
+                                "Rows": [
+                                    {
+                                        "address": "10.0.0.4",
+                                        "broadcast": "10.0.0.255",
+                                        "device": "Gi0/0",
+                                        "netmask": "255.255.255.0",
+                                        "network": "10.0.0.0",
+                                        "prefixlength": 24,
+                                        "type": "ipv4"
+                                    },
+                                    {
+                                        "address": "10.254.0.1",
+                                        "broadcast": "10.254.0.3",
+                                        "device": "Gi0/1",
+                                        "netmask": "255.255.255.252",
+                                        "network": "10.254.0.0",
+                                        "prefixlength": 30,
+                                        "type": "ipv4"
+                                    }
+                                ]
+                            }
+                        },
+                        "cdp_cache": {
+                            "Attributes": {
+                                "Pairs": {
+                                    "enabled": "yes",
+                                    "hold_time": 180,
+                                    "local_name": "rt-wan-01.corp.meridian-retail.com",
+                                    "message_interval": 60
+                                }
+                            },
+                            "Nodes": {
+                                "neighbors": {
+                                    "Attributes": {},
+                                    "Nodes": {},
+                                    "Table": {
+                                        "KeyColumns": [
+                                            "local_port",
+                                            "neighbor_name",
+                                            "neighbor_port"
+                                        ],
+                                        "Rows": [
+                                            {
+                                                "capabilities": "IGMP, L2, L3",
+                                                "duplex": "full duplex",
+                                                "local_port": "Gi0/0",
+                                                "native_vlan": 1,
+                                                "neighbor_name": "sw-core-01.corp.meridian-retail.com",
+                                                "neighbor_port": "Te1/0/4",
+                                                "platform": "cisco C9300-48P",
+                                                "platform_details": "Cisco IOS Software, Catalyst L3 Switch"
+                                            },
+                                            {
+                                                "capabilities": "L3",
+                                                "duplex": "full duplex",
+                                                "local_port": "Gi0/1",
+                                                "native_vlan": 1,
+                                                "neighbor_name": "rt-wh1-01.corp.meridian-retail.com",
+                                                "neighbor_port": "Gi0/0",
+                                                "platform": "cisco C1111-4P",
+                                                "platform_details": "Cisco IOS Software, ISR"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "Table": {}
+                        },
+                        "interfaces": {
+                            "Attributes": {},
+                            "Nodes": {},
+                            "Table": {
+                                "KeyColumns": [
+                                    "index"
+                                ],
+                                "Rows": [
+                                    {
+                                        "index": 1,
+                                        "name": "Gi0/0"
+                                    },
+                                    {
+                                        "index": 2,
+                                        "name": "Gi0/1"
+                                    }
+                                ]
+                            }
+                        },
+                        "lldp_cache": {
+                            "Attributes": {
+                                "Pairs": {
+                                    "local_description": "Cisco IOS Software, C2900 Software (C2900-UNIVERSALK9-M), Version 15.7(3)M5, RELEASE SOFTWARE (fc1), Copyright (c) 1986-2019 by Cisco Systems, Inc.",
+                                    "local_id": "00:1B:2C:19:AD:30",
+                                    "local_name": "rt-wan-01.corp.meridian-retail.com"
+                                }
+                            },
+                            "Nodes": {
+                                "neighbors": {
+                                    "Attributes": {},
+                                    "Nodes": {},
+                                    "Table": {
+                                        "KeyColumns": [
+                                            "local_port",
+                                            "neighbor_name",
+                                            "neighbor_port"
+                                        ],
+                                        "Rows": [
+                                            {
+                                                "local_port": "Gi0/0",
+                                                "neighbor_address": "10.0.41.166",
+                                                "neighbor_id": "00:1B:2C:2F:2F:77",
+                                                "neighbor_name": "sw-core-01.corp.meridian-retail.com",
+                                                "neighbor_port": "Te1/0/4",
+                                                "port_description": "Te1/0/4",
+                                                "system_description": "Cisco IOS Software, Catalyst L3 Switch"
+                                            },
+                                            {
+                                                "local_port": "Gi0/1",
+                                                "neighbor_address": "10.0.25.116",
+                                                "neighbor_id": "00:1B:2C:07:62:1F",
+                                                "neighbor_name": "rt-wh1-01.corp.meridian-retail.com",
+                                                "neighbor_port": "Gi0/0",
+                                                "port_description": "Gi0/0",
+                                                "system_description": "Cisco IOS Software, ISR"
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
+                            "Table": {}
+                        }
+                    },
+                    "Table": {}
+                },
+                "software": {
+                    "Attributes": {},
+                    "Nodes": {
+                        "applications": {
+                            "Attributes": {},
+                            "Nodes": {
+                                "check_mk": {
+                                    "Attributes": {},
+                                    "Nodes": {
+                                        "cluster": {
+                                            "Attributes": {
+                                                "Pairs": {
+                                                    "is_cluster": false
+                                                }
+                                            },
+                                            "Nodes": {},
+                                            "Table": {}
+                                        }
+                                    },
+                                    "Table": {}
+                                }
+                            },
+                            "Table": {}
+                        },
+                        "configuration": {
+                            "Attributes": {},
+                            "Nodes": {
+                                "snmp_info": {
+                                    "Attributes": {
+                                        "Pairs": {
+                                            "contact": "netops@meridian-retail.com",
+                                            "location": "DC rack A2",
+                                            "name": "rt-wan-01.corp.meridian-retail.com"
+                                        }
+                                    },
+                                    "Nodes": {},
+                                    "Table": {}
+                                }
+                            },
+                            "Table": {}
+                        },
+                        "os": {
+                            "Attributes": {
+                                "Pairs": {
+                                    "type": "Cisco IOS Software",
+                                    "version": "15.7(3)M5"
+                                }
+                            },
+                            "Nodes": {},
+                            "Table": {}
+                        }
+                    },
+                    "Table": {}
+                }
+            },
+            "Table": {}
+        }
+    },
+    "result_code": 0
+}
