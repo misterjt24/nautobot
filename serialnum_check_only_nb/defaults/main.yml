@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT-0
+---
+serialnum_check_only_nb_device_role: network
+serialnum_check_only_nb_log_file: "{{ role_path }}/files/log/serials_not_found.log"
+serialnum_check_only_nb_validate_certs: true

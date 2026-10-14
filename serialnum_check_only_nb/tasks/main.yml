@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Ensure missing-serial log directory exists
+  ansible.builtin.file:
+    path: "{{ serialnum_check_only_nb_log_file | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Query Nautobot devices with the network role
+  ansible.builtin.uri:
+    url: "{{ nautobot_url }}/api/graphql/"
+    method: POST
+    headers:
+      Authorization: "Token {{ nautobot_token }}"
+      Content-Type: application/json
+      Accept: application/json
+    body_format: json
+    body:
+      query: >-
+        query {
+          devices(role: "{{ serialnum_check_only_nb_device_role }}") {
+            name
+            serial
+            device_type {
+              manufacturer {
+                name
+              }
+            }
+            primary_ip4 {
+              host
+            }
+          }
+        }
+    return_content: true
+    status_code: 200
+    validate_certs: "{{ serialnum_check_only_nb_validate_certs }}"
+  register: serialnum_check_only_nb_graphql
+  no_log: true
+
+- name: Validate Nautobot GraphQL response
+  ansible.builtin.assert:
+    that:
+      - serialnum_check_only_nb_graphql.json.errors | default([]) | length == 0
+      - serialnum_check_only_nb_graphql.json.data.devices is defined
+      - serialnum_check_only_nb_graphql.json.data.devices | length > 0
+    fail_msg: >-
+      Nautobot GraphQL did not return network devices. Check the API token,
+      GraphQL device-role filter, and Nautobot response.
+
+- name: Initialize Cisco device list
+  ansible.builtin.set_fact:
+    serialnum_check_only_nb_cisco_devices: []
+
+- name: Keep only Cisco network devices
+  ansible.builtin.set_fact:
+    serialnum_check_only_nb_cisco_devices: "{{ serialnum_check_only_nb_cisco_devices + [item] }}"
+  loop: "{{ serialnum_check_only_nb_graphql.json.data.devices }}"
+  when: item.device_type.manufacturer.name | default('') | lower == 'cisco'
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Require at least one Cisco network device
+  ansible.builtin.assert:
+    that:
+      - serialnum_check_only_nb_cisco_devices | length > 0
+    fail_msg: "Nautobot returned no Cisco devices with the configured network role."
+
+- name: Build Nautobot serial-number index
+  ansible.builtin.set_fact:
+    serialnum_check_only_nb_known_serials: >-
+      {{ serialnum_check_only_nb_cisco_devices
+         | map(attribute='serial')
+         | reject('equalto', none)
+         | reject('equalto', '')
+         | map('lower')
+         | unique
+         | list }}
+
+- name: Validate devices have a primary IPv4 address
+  ansible.builtin.assert:
+    that:
+      - item.primary_ip4 is defined
+      - item.primary_ip4.host is defined
+    fail_msg: "Nautobot device {{ item.name }} has no primary IPv4 address."
+  loop: "{{ serialnum_check_only_nb_cisco_devices }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Add Nautobot Cisco devices to the dynamic inventory
+  ansible.builtin.add_host:
+    name: "{{ item.name }}"
+    groups: nautobot_network_devices
+    ansible_host: "{{ item.primary_ip4.host | regex_replace('/[0-9]+$', '') }}"
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+    nautobot_known_serials: "{{ serialnum_check_only_nb_known_serials }}"
+    serialnum_check_only_nb_log_path: "{{ serialnum_check_only_nb_log_file }}"
+  loop: "{{ serialnum_check_only_nb_cisco_devices }}"
+  loop_control:
+    label: "{{ item.name }}"
