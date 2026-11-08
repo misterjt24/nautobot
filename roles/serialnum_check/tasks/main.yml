@@ -1,0 +1,14 @@
+---
+# tasks file for serialnum_check
+- name: Ensure serial check log directory exists
+  ansible.builtin.file:
+    path: "{{ serialnum_check_log_file | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Process every inventory host
+  ansible.builtin.include_tasks: process_host.yml
+  loop: "{{ groups['all'] | default([]) }}"
+  loop_control:
+    loop_var: serialnum_inventory_host
+    label: "{{ serialnum_inventory_host }}"

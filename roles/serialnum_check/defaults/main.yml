@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT-0
+---
+serialnum_check_host_files: {}
+serialnum_check_log_file: "{{ role_path }}/files/log/result_check_serial.log"
+serialnum_check_validate_certs: true

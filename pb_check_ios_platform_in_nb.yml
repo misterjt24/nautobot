@@ -1,0 +1,88 @@
+---
+- name: Discover network devices and IOS types in Nautobot
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  serial: 1
+
+  tasks:
+    - name: Query Nautobot network devices
+      ansible.builtin.uri:
+        url: "{{ nautobot_url }}/api/graphql/"
+        method: POST
+        headers:
+          Authorization: "Token {{ nautobot_token }}"
+          Content-Type: application/json
+          Accept: application/json
+        body_format: json
+        body:
+          query: >-
+            query {
+              devices(role: "network") {
+                name
+                primary_ip4 {
+                  host
+                }
+                platform {
+                  name
+                }
+              }
+            }
+        return_content: true
+        status_code: 200
+        validate_certs: true
+      register: nautobot_devices_query
+      no_log: true
+
+    - name: Validate Nautobot response
+      ansible.builtin.assert:
+        that:
+          - nautobot_devices_query.json.errors | default([]) | length == 0
+          - nautobot_devices_query.json.data.devices is defined
+          - nautobot_devices_query.json.data.devices | length > 0
+        fail_msg: "Nautobot did not return devices with role 'network'. Check the API token and GraphQL response."
+
+    - name: Validate network devices have a primary IPv4 address
+      ansible.builtin.assert:
+        that:
+          - item.primary_ip4 is defined
+          - item.primary_ip4.host is defined
+        fail_msg: "Nautobot device {{ item.name }} has no primary IPv4 address."
+      loop: "{{ nautobot_devices_query.json.data.devices }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Add Nautobot devices to the dynamic inventory
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: nautobot_network_devices
+        ansible_host: "{{ item.primary_ip4.host | regex_replace('/[0-9]+$', '') }}"
+        ansible_connection: ansible.netcommon.network_cli
+        ansible_network_os: cisco.ios.ios
+        nautobot_ios_type: "{{ (item.platform | default({}, true)).name | default('') }}"
+      loop: "{{ nautobot_devices_query.json.data.devices }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+- name: Compare device IOS types with Nautobot
+  hosts: nautobot_network_devices
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: Gather IOS type
+      cisco.ios.ios_facts:
+        gather_subset:
+          - min
+    - name: Compare IOS type with Nautobot
+      ansible.builtin.debug:
+        msg: "'{{ ansible_facts }}'"
+
+    - name: Log devices with an IOS type mismatch
+      ansible.builtin.lineinfile:
+        path: "{{ playbook_dir }}/ios_type_mismatches.log"
+        create: true
+        mode: "0644"
+        insertafter: EOF
+        line: "'{{ inventory_hostname }}' = IOS is not correct, Nautobot has '{{ nautobot_ios_type }}', device has '{{ ansible_net_iostype }}'"
+      when: ansible_net_iostype | lower != nautobot_ios_type | lower
+      delegate_to: localhost

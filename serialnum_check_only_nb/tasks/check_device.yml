@@ -1,0 +1,39 @@
+---
+- name: Gather Cisco chassis and stack serial facts
+  cisco.ios.ios_facts:
+    gather_subset:
+      - min
+
+- name: Combine chassis and stack-member serial numbers
+  ansible.builtin.set_fact:
+    serialnum_check_only_nb_device_serials: >-
+      {{ ([ansible_net_serialnum | default('')]
+          + (ansible_net_stacked_serialnums | default([], true)))
+         | reject('equalto', none)
+         | reject('equalto', '')
+         | unique
+         | list }}
+
+- name: Fail if the Cisco device returned no serial numbers
+  ansible.builtin.assert:
+    that:
+      - serialnum_check_only_nb_device_serials | length > 0
+    fail_msg: "No chassis or stack-member serial number returned for {{ inventory_hostname }}."
+
+- name: Show serials checked against Nautobot
+  ansible.builtin.debug:
+    msg:
+      hostname: "{{ inventory_hostname }}"
+      serials: "{{ serialnum_check_only_nb_device_serials }}"
+
+- name: Log serial numbers missing from Nautobot
+  ansible.builtin.lineinfile:
+    path: "{{ serialnum_check_only_nb_log_path }}"
+    create: true
+    mode: "0644"
+    insertafter: EOF
+    line: "{{ inventory_hostname }} | serial={{ item }} | not found in Nautobot"
+  loop: "{{ serialnum_check_only_nb_device_serials }}"
+  when: item | lower not in nautobot_known_serials
+  delegate_to: localhost
+

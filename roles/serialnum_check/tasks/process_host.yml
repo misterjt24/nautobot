@@ -1,0 +1,54 @@
+---
+- name: Select JSON file for inventory host
+  ansible.builtin.set_fact:
+    serialnum_json_file: >-
+      {{ serialnum_check_host_files.get(serialnum_inventory_host,
+         serialnum_inventory_host ~ '.json') }}
+
+- name: Check that host JSON file exists
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ serialnum_json_file }}"
+  register: serialnum_json_file_stat
+
+- name: Stop when host JSON file is missing
+  ansible.builtin.assert:
+    that:
+      - serialnum_json_file_stat.stat.exists
+    fail_msg: >-
+      No serial JSON found for {{ serialnum_inventory_host }} at
+      {{ role_path }}/files/{{ serialnum_json_file }}. Set
+      serialnum_check_host_files to map this inventory hostname to its JSON file.
+
+- name: Load host JSON
+  ansible.builtin.set_fact:
+    serialnum_host_json: "{{ lookup('ansible.builtin.file', role_path ~ '/files/' ~ serialnum_json_file) | from_json }}"
+
+- name: Flatten host JSON paths
+  ansible.builtin.set_fact:
+    serialnum_host_paths: "{{ serialnum_host_json | ansible.utils.to_paths }}"
+
+- name: Extract non-empty serial numbers
+  ansible.builtin.set_fact:
+    serialnum_host_serials: >-
+      {{ serialnum_host_paths | dict2items
+        | selectattr('key', 'search', 'Rows.*name$')
+         | selectattr('value', 'search', '(?i)(Motherboard|Chassis)')
+         | map(attribute='key')
+         | map('regex_replace', 'name$', 'serial')
+         | map('extract', serialnum_host_paths)
+         | reject('equalto', '')
+         | list }}
+
+- name: Debug selected file and extracted serials
+  ansible.builtin.debug:
+    msg:
+      inventory_host: "{{ serialnum_inventory_host }}"
+      json_file: "{{ serialnum_json_file }}"
+      serials: "{{ serialnum_host_serials }}"
+
+- name: Validate each host serial number
+  ansible.builtin.include_tasks: process_serial.yml
+  loop: "{{ serialnum_host_serials }}"
+  loop_control:
+    loop_var: serialnum_value
+    label: "{{ serialnum_value }}"
