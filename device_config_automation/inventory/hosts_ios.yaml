@@ -1,0 +1,49 @@
+---
+all:
+  children:
+    cisco_ios:
+      hosts:
+        ios-switch-01:
+          ansible_host: 192.0.2.10
+          ansible_network_os: cisco.ios.ios
+          ansible_connection: ansible.netcommon.network_cli
+          ansible_user: "{{ vault_ansible_user }}"
+          ansible_password: "{{ vault_ansible_password }}"
+          device_tags:
+            - access
+            - site-1
+            - offen
+          ios_config:
+            hostname: ios-switch-01
+            domain_name: example.net
+            enable_secret: "{{ vault_ios_enable_secret }}"
+            local_users:
+              - name: netadmin
+                privilege: 15
+                secret: "{{ vault_ios_local_user_secret }}"
+            vlans:
+              - vid: 10
+                name: USERS
+              - vid: 20
+                name: VOICE
+            interfaces:
+              - range: "GigabitEthernet1/0/1 - 23"
+                description: User access ports
+                mode: access
+                access_vlan: 10
+                admin_state: up
+              - name: GigabitEthernet1/0/24
+                description: Uplink
+                mode: trunk
+                trunk_vlans:
+                  - 10
+                  - 20
+                admin_state: up
+            snmp:
+              location: Site 1
+              contact: network-ops@example.net
+              communities:
+                - name: "{{ vault_snmp_ro_community }}"
+                  permission: RO
+            ntp_servers:
+              - 192.0.2.20

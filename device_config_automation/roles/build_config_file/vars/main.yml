@@ -1,0 +1,13 @@
+---
+query_string: |
+  query {
+    config_contexts {
+      name
+      weight
+      is_active
+      data
+      tags {
+        name
+      }
+    }
+  }

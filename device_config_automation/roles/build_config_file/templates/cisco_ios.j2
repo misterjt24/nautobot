@@ -1,0 +1,35 @@
+! Generated from Nautobot config context and inventory host variables
+! Device: {{ ios_effective_config.hostname | default(inventory_hostname) }}
+! Tags: {{ ios_effective_tags | join(', ') }}
+!
+hostname {{ ios_effective_config.hostname | default(inventory_hostname) }}
+no ip domain lookup
+{% if ios_effective_config.domain_name is defined %}
+ip domain name {{ ios_effective_config.domain_name }}
+{% endif %}
+{% if ios_effective_config.enable_secret is defined %}
+enable secret {{ ios_effective_config.enable_secret }}
+{% endif %}
+service password-encryption
+ip ssh version {{ ios_effective_config.ssh_version | default(2) }}
+!
+{% if ios_effective_config.local_users is defined %}
+{% include 'ios/local_users.j2' %}
+{% endif %}
+{% if ios_effective_config.vlans is defined %}
+{% include 'ios/vlans.j2' %}
+{% endif %}
+{% if ios_effective_config.interfaces is defined %}
+{% include 'ios/interfaces.j2' %}
+{% endif %}
+{% if ios_effective_config.snmp is defined %}
+{% include 'ios/snmp.j2' %}
+{% endif %}
+
+{% if ios_effective_config.ntp_servers is defined %}
+{% for server in ios_effective_config.ntp_servers %}
+ntp server {{ server }}
+{% endfor %}
+{% endif %}
+!
+end

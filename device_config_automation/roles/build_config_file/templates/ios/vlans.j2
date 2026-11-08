@@ -1,0 +1,4 @@
+{% for vlan in ios_effective_config.vlans %}
+vlan {{ vlan.vid | default(vlan.id) }}
+ name {{ vlan.name }}
+{% endfor %}

@@ -1,0 +1,21 @@
+{% for interface in ios_effective_config.interfaces %}
+interface {% if interface.range is defined %}range {{ interface.range }}{% else %}{{ interface.name }}{% endif %}
+{% if interface.description is defined %}
+ description {{ interface.description }}
+{% endif %}
+{% if interface.mode is defined %}
+ switchport mode {{ interface.mode }}
+{% endif %}
+{% if interface.access_vlan is defined %}
+ switchport access vlan {{ interface.access_vlan }}
+{% endif %}
+{% if interface.trunk_vlans is defined %}
+ switchport trunk allowed vlan {{ interface.trunk_vlans | join(',') }}
+{% endif %}
+{% if interface.admin_state | default('up') == 'down' %}
+ shutdown
+{% else %}
+ no shutdown
+{% endif %}
+!
+{% endfor %}

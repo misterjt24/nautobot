@@ -1,0 +1,3 @@
+---
+nb_url: "{{ vault_nautobot_url }}"
+nb_token: "{{ vault_nautobot_token }}"

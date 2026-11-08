@@ -1,0 +1,55 @@
+- name: Validate Nautobot connection settings
+  ansible.builtin.assert:
+    that:
+      - nb_url | length > 0
+      - nb_token | length > 0
+    fail_msg: Set nb_url and nb_token before running this playbook.
+
+- name: Get configuration contexts from Nautobot
+  networktocode.nautobot.graphql_info:
+    url: "{{ nb_url }}"
+    token: "{{ nb_token }}"
+    validate_certs: "{{ nautobot_validate_certs | default(true) }}"
+    query: "{{ query_string }}"
+  register: nb_config_contexts
+
+- name: Verify that Nautobot returned configuration contexts
+  ansible.builtin.assert:
+    that:
+      - nb_config_contexts.data.config_contexts is defined
+    fail_msg: Nautobot did not return the config_contexts field.
+
+- name: Create configuration output directory
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/build_config_files"
+    state: directory
+    mode: "0700"
+
+- name: Initialize effective IOS configuration
+  ansible.builtin.set_fact:
+    ios_effective_config: {}
+    ios_effective_tags: "{{ device_tags | default([]) }}"
+
+- name: Merge active global and host-tagged Nautobot contexts by weight
+  ansible.builtin.set_fact:
+    ios_effective_config: >-
+      {{ ios_effective_config
+         | combine(item.data | default({}), recursive=true, list_merge='append') }}
+  loop: "{{ nb_config_contexts.data.config_contexts | sort(attribute='weight') }}"
+  vars:
+    context_tags: "{{ item.tags | default([]) | map(attribute='name') | list }}"
+  when:
+    - item.is_active | default(true) | bool
+    - context_tags | length == 0 or context_tags | intersect(device_tags | default([])) | length > 0
+
+- name: Merge host-specific IOS settings with Nautobot contexts
+  ansible.builtin.set_fact:
+    ios_effective_config: >-
+      {{ ios_effective_config
+         | combine(ios_config | default({}), recursive=true, list_merge='append') }}
+
+- name: Render Cisco IOS configuration
+  ansible.builtin.template:
+    src: cisco_ios.j2
+    dest: "{{ playbook_dir }}/build_config_files/{{ inventory_hostname }}.conf"
+    mode: "0600"

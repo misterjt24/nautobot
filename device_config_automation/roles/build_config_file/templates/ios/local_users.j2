@@ -1,0 +1,3 @@
+{% for user in ios_effective_config.local_users %}
+username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
+{% endfor %}

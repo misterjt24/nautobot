@@ -1,0 +1,9 @@
+---
+- name: Build Cisco IOS configurations from Nautobot
+  hosts: cisco_ios
+  gather_facts: false
+  connection: ansible.builtin.local
+  vars:
+    nautobot_validate_certs: true
+  roles:
+    - build_config_file

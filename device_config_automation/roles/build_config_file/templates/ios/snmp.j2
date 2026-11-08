@@ -1,0 +1,15 @@
+{% if ios_effective_config.snmp.location is defined %}
+snmp-server location {{ ios_effective_config.snmp.location }}
+{% endif %}
+{% if ios_effective_config.snmp.contact is defined %}
+snmp-server contact {{ ios_effective_config.snmp.contact }}
+{% endif %}
+{% for community in ios_effective_config.snmp.communities | default([]) %}
+snmp-server community {{ community.name }} {{ community.permission | default('RO') }}{% if community.acl is defined %} {{ community.acl }}{% endif %}
+{% endfor %}
+{% for group in ios_effective_config.snmp.groups | default([]) %}
+snmp-server group {{ group.name }} v3 {{ group.security_level | default('priv') }}
+{% endfor %}
+{% for user in ios_effective_config.snmp.users | default([]) %}
+snmp-server user {{ user.name }} {{ user.group }} v3 auth {{ user.auth_protocol }} {{ user.auth_password }} priv {{ user.priv_protocol }} {{ user.priv_password }}
+{% endfor %}
