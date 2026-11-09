@@ -40,5 +40,8 @@ und Tags stammen vollständig aus dem Inventory. Die Ausgabe liegt in
 
 SNMPv2c-Communities werden als `snmp-server community` ausgegeben. Für SNMPv3
 können `snmp.groups` und `snmp.users` im Config Context oder in den Hostdaten
-gesetzt werden. Geheimnisse erscheinen in der generierten IOS-Konfiguration;
-die Dateien werden deshalb mit Modus `0600` erstellt.
+gesetzt werden. Zusätzlich unterstützt die Vorlage `banner`, `access_lists` bzw.
+`acl`, `vty` und `line vty 0 15`-Konfigurationen, damit Zugriffslisten,
+Anmeldemeldungen und SSH-Managementzugriff mit einer klaren Baseline gebaut
+werden. Geheimnisse erscheinen in der generierten IOS-Konfiguration; die
+Dateien werden deshalb mit Modus `0600` erstellt.

@@ -13,15 +13,69 @@ enable secret {{ ios_effective_config.enable_secret }}
 service password-encryption
 ip ssh version {{ ios_effective_config.ssh_version | default(2) }}
 !
+{% set banner = ios_effective_config.banner | default({}) %}
+{% if banner.login is defined %}
+banner login ^C
+{{ banner.login }}
+^C
+{% endif %}
+{% if banner.exec is defined %}
+banner exec ^C
+{{ banner.exec }}
+^C
+{% endif %}
+{% if banner.motd is defined %}
+banner motd ^C
+{{ banner.motd }}
+^C
+{% endif %}
 {% if ios_effective_config.local_users is defined %}
 {% include 'ios/local_users.j2' %}
 {% endif %}
+{% set access_lists = ios_effective_config.access_lists | default(ios_effective_config.acl | default([])) %}
+{% for acl in access_lists %}
+ip access-list standard {{ acl.name }}
+{% if acl.entries is defined %}
+{% for entry in acl.entries %}
+ {{ entry }}
+{% endfor %}
+{% elif acl.rules is defined %}
+{% for rule in acl.rules %}
+ {{ rule }}
+{% endfor %}
+{% endif %}
+{% endfor %}
 {% if ios_effective_config.vlans is defined %}
 {% include 'ios/vlans.j2' %}
 {% endif %}
 {% if ios_effective_config.interfaces is defined %}
 {% include 'ios/interfaces.j2' %}
 {% endif %}
+line vty 0 15
+{% if ios_effective_config.vty is defined %}
+{% if ios_effective_config.vty.exec_timeout is defined %}
+ exec-timeout {{ ios_effective_config.vty.exec_timeout }}
+{% else %}
+ exec-timeout 5 0
+{% endif %}
+{% if ios_effective_config.vty.login is defined %}
+ login {{ ios_effective_config.vty.login }}
+{% else %}
+ login local
+{% endif %}
+{% if ios_effective_config.vty.access_class is defined %}
+ access-class {{ ios_effective_config.vty.access_class }} in
+{% endif %}
+{% if ios_effective_config.vty.transport_input is defined %}
+ transport input {{ ios_effective_config.vty.transport_input }}
+{% else %}
+ transport input ssh
+{% endif %}
+{% else %}
+ login local
+ transport input ssh
+{% endif %}
+!
 {% if ios_effective_config.snmp is defined %}
 {% include 'ios/snmp.j2' %}
 {% endif %}

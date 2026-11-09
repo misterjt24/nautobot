@@ -17,10 +17,30 @@ all:
             hostname: ios-switch-01
             domain_name: example.net
             enable_secret: "{{ vault_ios_enable_secret }}"
+            banner:
+              login: |
+                *********************************************
+                * Unauthorized access is prohibited.        *
+                * Contact the NOC before connecting.        *
+                *********************************************
+              exec: |
+                *********************************************
+                * This device is for authorized use only.  *
+                *********************************************
             local_users:
               - name: netadmin
                 privilege: 15
                 secret: "{{ vault_ios_local_user_secret }}"
+            access_lists:
+              - name: MGMT-SSH-ACL
+                entries:
+                  - permit 192.0.2.0 0.0.0.255
+                  - deny any log
+            vty:
+              access_class: MGMT-SSH-ACL
+              exec_timeout: "5 0"
+              login: local
+              transport_input: ssh
             vlans:
               - vid: 10
                 name: USERS
@@ -45,5 +65,15 @@ all:
               communities:
                 - name: "{{ vault_snmp_ro_community }}"
                   permission: RO
+              groups:
+                - name: SNMP-MGMT
+                  security_level: priv
+              users:
+                - name: snmpv3admin
+                  group: SNMP-MGMT
+                  auth_protocol: sha
+                  auth_password: "{{ vault_snmp_v3_auth_password }}"
+                  priv_protocol: aes 256
+                  priv_password: "{{ vault_snmp_v3_priv_password }}"
             ntp_servers:
               - 192.0.2.20
