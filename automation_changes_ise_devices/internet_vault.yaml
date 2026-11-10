@@ -1,0 +1,27 @@
+---
+# Vorlage: vor der Verwendung mit ansible-vault encrypt internet_vault.yaml verschluesseln.
+network_device_group: "Internet"
+username_passwort: "CHANGE_ME_LOCAL_ADMIN_PASSWORD"
+TACACS_Key: "CHANGE_ME_TACACS_SHARED_SECRET"
+
+ise_base_url: "https://ise.example.invalid:9060"
+ise_username: "CHANGE_ME_ISE_ERS_USERNAME"
+ise_password: "CHANGE_ME_ISE_ERS_PASSWORD"
+ise_validate_certs: true
+ise_page_size: 100
+ise_max_pages: 1000
+
+nautobot_base_url: "http://192.168.2.192:8080"
+nautobot_token: "0123456789abcdef0123456789abcdef01234567"
+nautobot_validate_certs: true
+nautobot_page_size: 200
+nautobot_max_pages: 1000
+
+# TACACS/SSH-Anmeldung auf den Switches (nicht die neuen lokalen Admin-Daten).
+switch_username: "CHANGE_ME_TACACS_LOGIN_USERNAME"
+switch_password: "CHANGE_ME_TACACS_LOGIN_PASSWORD"
+switch_enable_password: "CHANGE_ME_ENABLE_PASSWORD"
+
+# Leer: globale IOS-Syntax "tacacs-server key".
+# Name setzen: moderne Syntax unter "tacacs server <Name>".
+tacacs_server_name: ""

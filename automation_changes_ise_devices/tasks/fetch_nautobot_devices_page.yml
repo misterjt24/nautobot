@@ -1,0 +1,34 @@
+---
+- name: Enforce Nautobot pagination safety limit
+  ansible.builtin.assert:
+    that:
+      - nautobot_page_count | int < nautobot_max_pages | int
+    fail_msg: "Nautobot pagination exceeded nautobot_max_pages={{ nautobot_max_pages }}."
+
+- name: Fetch Nautobot device page
+  ansible.builtin.uri:
+    url: "{{ current_nautobot_page_url }}"
+    method: GET
+    headers:
+      Authorization: "Token {{ nautobot_token }}"
+      Accept: application/json
+    return_content: true
+    validate_certs: "{{ nautobot_validate_certs | bool }}"
+    status_code: 200
+  register: nautobot_page_response
+  no_log: true
+
+- name: Accumulate Nautobot device results
+  ansible.builtin.set_fact:
+    nautobot_device_results: >-
+      {{ nautobot_device_results + (nautobot_page_response.json.results | default([])) }}
+    nautobot_page_count: "{{ nautobot_page_count | int + 1 }}"
+    nautobot_next_page_url: "{{ nautobot_page_response.json.next | default('', true) }}"
+
+- name: Fetch next Nautobot device page
+  ansible.builtin.include_tasks: fetch_nautobot_devices_page.yml
+  vars:
+    current_nautobot_page_url: >-
+      {{ nautobot_next_page_url if nautobot_next_page_url.startswith('http') else
+         (nautobot_base_url | regex_replace('/+$', '')) ~ nautobot_next_page_url }}
+  when: nautobot_next_page_url | length > 0

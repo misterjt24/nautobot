@@ -1,0 +1,39 @@
+---
+- name: Enforce ISE pagination safety limit
+  ansible.builtin.assert:
+    that:
+      - ise_page_count | int < ise_max_pages | int
+    fail_msg: "ISE pagination exceeded ise_max_pages={{ ise_max_pages }}."
+
+- name: Fetch ISE network-device page
+  ansible.builtin.uri:
+    url: "{{ current_ise_page_url }}"
+    method: GET
+    user: "{{ ise_username }}"
+    password: "{{ ise_password }}"
+    force_basic_auth: true
+    headers:
+      Accept: application/json
+    return_content: true
+    validate_certs: "{{ ise_validate_certs | bool }}"
+    status_code: 200
+  register: ise_page_response
+  no_log: true
+
+- name: Accumulate ISE network-device resources
+  ansible.builtin.set_fact:
+    ise_network_device_resources: >-
+      {{ ise_network_device_resources
+         + (ise_page_response.json.SearchResult.resources | default([])) }}
+    ise_page_count: "{{ ise_page_count | int + 1 }}"
+    ise_next_page_href: >-
+      {{ ise_page_response.json.SearchResult.nextPage.href
+         | default(ise_page_response.json.SearchResult.nextPage | default(''), true) }}
+
+- name: Fetch next ISE network-device page
+  ansible.builtin.include_tasks: fetch_ise_networkdevice_page.yml
+  vars:
+    current_ise_page_url: >-
+      {{ ise_next_page_href if ise_next_page_href.startswith('http') else
+         (ise_base_url | regex_replace('/+$', '')) ~ ise_next_page_href }}
+  when: ise_next_page_href | length > 0

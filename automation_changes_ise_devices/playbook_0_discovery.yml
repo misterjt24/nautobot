@@ -1,0 +1,125 @@
+---
+- name: Discover ISE network ranges and build Nautobot switch inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - internet_vault.yaml
+  vars:
+    ise_network_devices_url: "{{ ise_base_url | regex_replace('/+$', '') }}/ers/config/networkdevice?size={{ ise_page_size }}"
+    nautobot_devices_url: >-
+      {{ nautobot_base_url | regex_replace('/+$', '') }}/api/dcim/devices/?limit={{ nautobot_page_size }}
+    inventory_group: internet_switches
+    inventory_path: "{{ playbook_dir }}/hosts_{{ network_device_group | regex_replace('[^A-Za-z0-9_.-]', '_') }}.ini"
+  tasks:
+    - name: Initialize discovery state
+      ansible.builtin.set_fact:
+        ise_network_device_resources: []
+        ise_matching_devices: []
+        ise_matching_prefixes: []
+        matched_devices: []
+        ise_page_count: 0
+        nautobot_device_results: []
+        nautobot_page_count: 0
+
+    - name: Fetch all ISE network-device pages
+      ansible.builtin.include_tasks: tasks/fetch_ise_networkdevice_page.yml
+      vars:
+        current_ise_page_url: "{{ ise_network_devices_url }}"
+
+    - name: Fetch details for ISE network devices
+      ansible.builtin.uri:
+        url: "{{ ise_base_url | regex_replace('/+$', '') }}/ers/config/networkdevice/{{ item.id }}"
+        method: GET
+        user: "{{ ise_username }}"
+        password: "{{ ise_password }}"
+        force_basic_auth: true
+        headers:
+          Accept: application/json
+        return_content: true
+        validate_certs: "{{ ise_validate_certs | bool }}"
+        status_code: 200
+      loop: "{{ ise_network_device_resources }}"
+      loop_control:
+        label: "{{ item.name | default(item.id) }}"
+      register: ise_network_device_details
+      no_log: true
+
+    - name: Keep devices in the selected ISE group
+      ansible.builtin.set_fact:
+        ise_matching_devices: "{{ ise_matching_devices + [item.json.NetworkDevice] }}"
+      loop: "{{ ise_network_device_details.results | default([]) }}"
+      loop_control:
+        label: "{{ item.json.NetworkDevice.name | default(item.item.name | default(item.item.id)) }}"
+      when:
+        - item.json.NetworkDevice is defined
+        - >-
+          network_device_group in (item.json.NetworkDevice.NetworkDeviceGroupList | default([]))
+          or (item.json.NetworkDevice.NetworkDeviceGroupList | default([])
+          | select('search', '#' ~ network_device_group ~ '$') | list | length > 0)
+
+    - name: Build ISE address and prefix list
+      ansible.builtin.set_fact:
+        ise_matching_prefixes: >-
+          {{ ise_matching_prefixes + [
+            item.ipaddress ~ (('/' ~ item.mask | string)
+            if item.mask is defined and item.mask is not none
+            and item.mask | string | length > 0 and '/' not in item.ipaddress else '')
+          ] }}
+      loop: "{{ ise_matching_devices | map(attribute='NetworkDeviceIPList') | flatten }}"
+      when:
+        - item.ipaddress is defined
+      loop_control:
+        label: "{{ item.ipaddress }}"
+
+    - name: Normalize discovered ISE prefixes
+      ansible.builtin.set_fact:
+        ise_matching_prefixes: "{{ ise_matching_prefixes | unique | list }}"
+
+    - name: Require ISE devices and address ranges for the selected group
+      ansible.builtin.assert:
+        that:
+          - ise_matching_devices | length > 0
+          - ise_matching_prefixes | length > 0
+        fail_msg: >-
+          ISE returned no devices or no IP addresses for group
+          '{{ network_device_group }}'. No inventory was written.
+
+    - name: Fetch all Nautobot device pages
+      ansible.builtin.include_tasks: tasks/fetch_nautobot_devices_page.yml
+      vars:
+        current_nautobot_page_url: "{{ nautobot_devices_url }}"
+
+    - name: Match Nautobot primary IPv4 addresses to ISE ranges
+      ansible.builtin.set_fact:
+        matched_devices: >-
+          {{ matched_devices + ([{
+            'name': item.0.name,
+            'address': item.0.primary_ip4.address | ansible.utils.ipaddr('address')
+          }] if item.0.name not in (matched_devices | map(attribute='name') | list) else []) }}
+      loop: "{{ nautobot_device_results | product(ise_matching_prefixes) | list }}"
+      loop_control:
+        label: "{{ item.0.name | default('unnamed') }} in {{ item.1 }}"
+      when:
+        - item.0.name is defined
+        - item.0.primary_ip4 is mapping
+        - item.0.primary_ip4.address is defined
+        - item.0.primary_ip4.address | ansible.utils.ipaddr(item.1)
+
+    - name: Require at least one Nautobot match
+      ansible.builtin.assert:
+        that:
+          - matched_devices | length > 0
+        fail_msg: >-
+          No Nautobot device primary IPv4 address matched the ISE ranges for
+          '{{ network_device_group }}'. No inventory was written.
+
+    - name: Write generated Ansible inventory
+      ansible.builtin.copy:
+        dest: "{{ inventory_path }}"
+        mode: "0600"
+        content: |
+          [{{ inventory_group }}]
+          {% for device in matched_devices | sort(attribute='name') %}
+          {{ device.name }} ansible_host={{ device.address }}
+          {% endfor %}

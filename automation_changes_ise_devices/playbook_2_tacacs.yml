@@ -1,0 +1,197 @@
+---
+- name: Update TACACS shared secret on discovered Internet switches
+  hosts: internet_switches
+  gather_facts: false
+  vars_files:
+    - internet_vault.yaml
+  vars:
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: >-
+      {{ 'cisco.nxos.nxos' if (tacacs_device_os | default('ios') | lower) == 'nxos'
+         else 'cisco.ios.ios' }}
+    ansible_user: "{{ switch_username }}"
+    ansible_password: "{{ switch_password }}"
+    ansible_become: true
+    ansible_become_method: enable
+    ansible_become_password: "{{ switch_enable_password }}"
+  tasks:
+    - name: Validate requested network operating system
+      ansible.builtin.assert:
+        that:
+          - tacacs_device_os | default('ios') | lower in ['ios', 'nxos']
+        fail_msg: "Set tacacs_device_os to either 'ios' or 'nxos' for each target."
+
+    - name: Read current IOS running configuration
+      cisco.ios.ios_command:
+        commands:
+          - show running-config
+      register: tacacs_running_config
+      when: tacacs_device_os | default('ios') | lower == 'ios'
+      no_log: true
+
+    - name: Read current NX-OS running configuration
+      cisco.nxos.nxos_command:
+        commands:
+          - show running-config
+      register: tacacs_running_config
+      when: tacacs_device_os | default('ios') | lower == 'nxos'
+      no_log: true
+
+    - name: Detect TACACS configuration styles
+      ansible.builtin.set_fact:
+        tacacs_running_config_text: "{{ tacacs_running_config.stdout[0] | default('') }}"
+        tacacs_server_names: >-
+          {{ tacacs_running_config.stdout[0] | default('')
+             | regex_findall('(?m)^tacacs server\s+(\S+)') }}
+        tacacs_server_groups: >-
+          {{ tacacs_running_config.stdout[0] | default('')
+             | regex_findall('(?ms)^aaa group server tacacs\+\s+(\S+)(.*?)(?=^\S|\Z)') }}
+        has_tacacs_server_block: >-
+          {{ tacacs_running_config.stdout[0] | default('') is search('(?m)^tacacs server\s+\S+') }}
+        has_global_tacacs_key: >-
+          {{ tacacs_running_config.stdout[0] | default('') is search('(?m)^tacacs-server\s+key\s+\S+') }}
+        has_tacacs_server_host: >-
+          {{ tacacs_running_config.stdout[0] | default('') is search('(?m)^tacacs-server\s+host\s+\S+') }}
+        has_server_private: >-
+          {{ tacacs_running_config.stdout[0] | default('') is search('(?m)^[ \t]*server-private\s+\S+\s+key\s+\S+') }}
+      no_log: true
+
+    - name: Update keys in named IOS TACACS server blocks
+      cisco.ios.ios_config:
+        parents:
+          - "tacacs server {{ item }}"
+        lines:
+          - "key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      loop: "{{ tacacs_server_names }}"
+      when:
+        - tacacs_device_os | default('ios') | lower == 'ios'
+        - has_tacacs_server_block
+      loop_control:
+        label: "{{ item }}"
+      no_log: true
+
+    - name: Update keys in named NX-OS TACACS server blocks
+      cisco.nxos.nxos_config:
+        parents:
+          - "tacacs server {{ item }}"
+        lines:
+          - "key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      loop: "{{ tacacs_server_names }}"
+      when:
+        - tacacs_device_os | default('ios') | lower == 'nxos'
+        - has_tacacs_server_block
+      loop_control:
+        label: "{{ item }}"
+      no_log: true
+
+    - name: Update global TACACS key on IOS
+      cisco.ios.ios_config:
+        lines:
+          - "tacacs-server key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      when:
+        - tacacs_device_os | default('ios') | lower == 'ios'
+        - (has_global_tacacs_key or has_tacacs_server_host)
+        - not has_tacacs_server_block
+      no_log: true
+
+    - name: Update global TACACS key on NX-OS
+      cisco.nxos.nxos_config:
+        lines:
+          - "tacacs-server key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      when:
+        - tacacs_device_os | default('ios') | lower == 'nxos'
+        - (has_global_tacacs_key or has_tacacs_server_host)
+        - not has_tacacs_server_block
+      no_log: true
+
+    - name: Update server-private keys within IOS AAA groups
+      cisco.ios.ios_config:
+        parents:
+          - "aaa group server tacacs+ {{ item.0 }}"
+        lines: >-
+          {{ item.1
+             | regex_findall('(?m)^[ \t]*server-private\s+(\S+)\s+key\s+(?:(?:0|7)\s+)?\S+')
+             | map('regex_replace', '^(.*)$', 'server-private \1 key 0 ' ~ TACACS_Key)
+             | list }}
+        backup: true
+        save_when: modified
+      loop: "{{ tacacs_server_groups }}"
+      when:
+        - tacacs_device_os | default('ios') | lower == 'ios'
+        - item.1 is search('(?m)^[ \t]*server-private\s+\S+\s+key\s+\S+')
+      loop_control:
+        label: "AAA group {{ item.0 }}"
+      no_log: true
+
+    - name: Update server-private keys within NX-OS AAA groups
+      cisco.nxos.nxos_config:
+        parents:
+          - "aaa group server tacacs+ {{ item.0 }}"
+        lines: >-
+          {{ item.1
+             | regex_findall('(?m)^[ \t]*server-private\s+(\S+)\s+key\s+(?:(?:0|7)\s+)?\S+')
+             | map('regex_replace', '^(.*)$', 'server-private \1 key 0 ' ~ TACACS_Key)
+             | list }}
+        backup: true
+        save_when: modified
+      loop: "{{ tacacs_server_groups }}"
+      when:
+        - tacacs_device_os | default('ios') | lower == 'nxos'
+        - item.1 is search('(?m)^[ \t]*server-private\s+\S+\s+key\s+\S+')
+      loop_control:
+        label: "AAA group {{ item.0 }}"
+      no_log: true
+
+    - name: Apply global IOS TACACS key when no known style exists
+      cisco.ios.ios_config:
+        lines:
+          - "tacacs-server key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      when:
+        - tacacs_device_os | default('ios') | lower == 'ios'
+        - not (has_tacacs_server_block or has_global_tacacs_key or has_server_private or has_tacacs_server_host)
+      no_log: true
+
+    - name: Apply global NX-OS TACACS key when no known style exists
+      cisco.nxos.nxos_config:
+        lines:
+          - "tacacs-server key 0 {{ TACACS_Key }}"
+        backup: true
+        save_when: modified
+      when:
+        - tacacs_device_os | default('ios') | lower == 'nxos'
+        - not (has_tacacs_server_block or has_global_tacacs_key or has_server_private or has_tacacs_server_host)
+      no_log: true
+
+    - name: Read back TACACS configuration on IOS
+      cisco.ios.ios_command:
+        commands:
+          - show running-config | include tacacs
+      register: tacacs_verification
+      when: tacacs_device_os | default('ios') | lower == 'ios'
+      no_log: true
+
+    - name: Read back TACACS configuration on NX-OS
+      cisco.nxos.nxos_command:
+        commands:
+          - show running-config | include tacacs
+      register: tacacs_verification
+      when: tacacs_device_os | default('ios') | lower == 'nxos'
+      no_log: true
+
+    - name: Confirm TACACS configuration is present
+      ansible.builtin.assert:
+        that:
+          - tacacs_verification.stdout[0] | default('') | length > 0
+        fail_msg: >-
+          No TACACS configuration was found after applying the key on
+          {{ inventory_hostname }}. Configuration output is suppressed.
